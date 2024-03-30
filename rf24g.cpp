@@ -35,7 +35,7 @@ void packet::setCnt(uint8_t _cnt) {
 }
 
 bool packet::addPayload(const void * data, const uint8_t size){
-	if (size > 30) {
+	if (size > MAX_PAYLOAD_SIZE-2) {
 		return false;
 	}
 	const uint8_t* current = reinterpret_cast<const uint8_t*>(data);
@@ -47,7 +47,7 @@ bool packet::addPayload(const void * data, const uint8_t size){
 }
 
 bool packet::readPayload(void * data, const uint8_t size) {
-	if (size > 30) {
+	if (size > MAX_PAYLOAD_SIZE-2) {
 		return false;
 	}
 	uint8_t* current = reinterpret_cast<uint8_t*>(data);
@@ -55,21 +55,37 @@ bool packet::readPayload(void * data, const uint8_t size) {
 	return true;
 }
 
-void packet::serialDump() {
+void packet::serialDumpHex() {
   Serial.print("Address:");Serial.println(this->address);
   Serial.print("  count:");Serial.println(this->cnt);
   uint8_t size = this->size>0 ? this->size : MAX_PAYLOAD_SIZE;
-  for(uint8_t i=0; i<size;i++) {Serial.print("Payload:");Serial.print(this->buffer[i]);Serial.print(",");}
+  Serial.print("Payload:");
+  for(uint8_t i=0; i<size;i++) {
+    Serial.print(this->buffer[i]<10?"0x0":"0x");
+    Serial.print(this->buffer[i],HEX);
+    Serial.print(" ");
+  }
+  Serial.println();
+}
+
+void packet::serialDumpString() {
+  Serial.print("Address:");Serial.println(this->address);
+  Serial.print("  count:");Serial.println(this->cnt);
+  uint8_t size = this->size>0 ? this->size : MAX_PAYLOAD_SIZE-2;
+  char c=buffer[MAX_PAYLOAD_SIZE-3];
+  buffer[MAX_PAYLOAD_SIZE-3]=0;
+  Serial.print("Payload:");Serial.print((char *)this->buffer);if(size==MAX_PAYLOAD_SIZE-2)Serial.print(c);
+  buffer[MAX_PAYLOAD_SIZE-3]=c;
   Serial.println();
 }
 
 RF24_G::RF24_G(){
-    #if defined NRF52_RADIO_LIBRARY
+#if defined NRF52_RADIO_LIBRARY
 	radio = nrf_to_nrf();
-    #else
-    radio = RF24(9,10);
-	#endif
-    myAddress = 0;
+#else
+  radio = RF24(9,10);
+#endif
+  myAddress = 0;
 }
 
 
@@ -87,12 +103,12 @@ void RF24_G::setup(uint8_t address, uint8_t _cepin, uint8_t _cspin, uint8_t _cha
 		TXpacketCounters[popIterator] = 0;
 		RXpacketCounters[popIterator] = PACKET_CNTER+1;
 	}
-    #if defined NRF52_RADIO_LIBRARY
+#if defined NRF52_RADIO_LIBRARY
 	radio = nrf_to_nrf();
-    #else
-    radio = RF24(_cepin,_cspin);
-	#endif
-    myAddress = address;
+#else
+  radio = RF24(_cepin,_cspin);
+#endif
+  myAddress = address;
 
 	radio.begin();
   radio.setChannel(_channel>125 ? 108 : _channel);
@@ -104,19 +120,18 @@ void RF24_G::setup(uint8_t address, uint8_t _cepin, uint8_t _cspin, uint8_t _cha
 		if ((popIterator) != myAddress) {
 			uint64_t rxAddress = (BASE_ADDRESS + ((popIterator) + ((MAX_NODES + 1)  *  ( myAddress))));
 			radio.openReadingPipe(pipenum, rxAddress);
-			Serial.print("reading from to this address: ");
-			Serial.println((int)(((popIterator) + ((MAX_NODES + 1)  *  ( myAddress)))));
+			//Serial.print("reading from to this address: ");
+			//Serial.println((int)(((popIterator) + ((MAX_NODES + 1)  *  ( myAddress)))));
 			pipenum++;
 		}
 	}
     
-    #if defined NRF52_RADIO_LIBRARY
-      radio.setPALevel(NRF_PA_MAX);
-    #else
-      radio.setPALevel(RF24_PA_MAX); 
-    #endif
-    radio.startListening();                 // Start listening
-
+#if defined NRF52_RADIO_LIBRARY
+  radio.setPALevel(NRF_PA_MAX);
+#else
+  radio.setPALevel(RF24_PA_MAX); 
+#endif
+  radio.startListening();                 // Start listening
 }
 
 
@@ -138,8 +153,8 @@ bool RF24_G::write(packet* _packet) {
 	TX->setCnt(TXpacketCounters[dest]);
     
 	radio.openWritingPipe((BASE_ADDRESS + ((myAddress) + ((MAX_NODES + 1)  *  dest))));
-	Serial.print("writing to this address: ");
-	Serial.println((int)(((myAddress ) + ((MAX_NODES + 1)  *  dest))));
+	//Serial.print("writing to this address: ");
+	//Serial.println((int)(((myAddress ) + ((MAX_NODES + 1)  *  dest))));
 	success = radio.write(TX, MAX_PAYLOAD_SIZE);
 	if (success == false) {
 		delayMicroseconds(TIMEOUT*myAddress);

@@ -141,7 +141,8 @@ public:
 	   */
 	bool readPayload(void * data, const uint8_t size);
   
-  void serialDump();
+  void serialDumpHex();
+  void serialDumpString();
 };
 
 
