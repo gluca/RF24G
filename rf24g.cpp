@@ -14,6 +14,7 @@ packet::packet(){
     memset(this->buffer,0,30);
     this->cnt = 0;
     this->address = 0;
+    this->size=0;
 }
 
    
@@ -38,10 +39,10 @@ bool packet::addPayload(const void * data, const uint8_t size){
 		return false;
 	}
 	const uint8_t* current = reinterpret_cast<const uint8_t*>(data);
-	int i;
-	for (i = 0; i < size; i++) {
-		buffer[i] = *current++;
-	}
+  memcpy(buffer,current,size);
+  this->size=size;
+  uint8_t left=MAX_PAYLOAD_SIZE-2-size;
+  if(left>0) memset(this->buffer+size,0,left);
 	return true;
 }
 
@@ -50,32 +51,37 @@ bool packet::readPayload(void * data, const uint8_t size) {
 		return false;
 	}
 	uint8_t* current = reinterpret_cast<uint8_t*>(data);
-	int i;
-	for (i = 0; i < size; i++) {
-		*current++ = buffer[i];
-	}
+  memcpy(current,buffer,size);
 	return true;
+}
+
+void packet::serialDump() {
+  Serial.print("Address:");Serial.println(this->address);
+  Serial.print("  count:");Serial.println(this->cnt);
+  uint8_t size = this->size>0 ? this->size : MAX_PAYLOAD_SIZE;
+  for(uint8_t i=0; i<size;i++) {Serial.print("Payload:");Serial.print(this->buffer[i]);Serial.print(",");}
+  Serial.println();
 }
 
 RF24_G::RF24_G(){
     #if defined NRF52_RADIO_LIBRARY
 	radio = nrf_to_nrf();
     #else
-    radio = RF24(7,8);
+    radio = RF24(9,10);
 	#endif
     myAddress = 0;
 }
 
 
 RF24_G::RF24_G(uint8_t address){
-	setup(address,7,8);
+	setup(address,9,10);
 }
 
-RF24_G::RF24_G(uint8_t address, uint8_t _cepin, uint8_t _cspin) {
-     setup(address,_cepin,_cspin);
+RF24_G::RF24_G(uint8_t address, uint8_t _cepin, uint8_t _cspin, uint8_t _channel) {
+     setup(address,_cepin,_cspin,_channel);
 }
 
-void RF24_G::setup(uint8_t address, uint8_t _cepin, uint8_t _cspin){
+void RF24_G::setup(uint8_t address, uint8_t _cepin, uint8_t _cspin, uint8_t _channel){
     	int popIterator;
 	for (popIterator = 0; popIterator < (MAX_NODES); popIterator++) {
 		TXpacketCounters[popIterator] = 0;
@@ -89,7 +95,7 @@ void RF24_G::setup(uint8_t address, uint8_t _cepin, uint8_t _cspin){
     myAddress = address;
 
 	radio.begin();
-  	radio.setChannel(108);
+  radio.setChannel(_channel>125 ? 108 : _channel);
 	radio.setAutoAck(1);                    // Ensure autoACK is enabled
 	radio.setRetries(5 + myAddress,15);                 // Smallest time between retries, max no. of retries
 	radio.setPayloadSize(MAX_PAYLOAD_SIZE);
@@ -130,7 +136,7 @@ bool RF24_G::write(packet* _packet) {
 	packet *TX = _packet;
 	TX->setAddress(myAddress);
 	TX->setCnt(TXpacketCounters[dest]);
-     
+    
 	radio.openWritingPipe((BASE_ADDRESS + ((myAddress) + ((MAX_NODES + 1)  *  dest))));
 	Serial.print("writing to this address: ");
 	Serial.println((int)(((myAddress ) + ((MAX_NODES + 1)  *  dest))));

@@ -45,6 +45,7 @@ class packet {
 private:
 	uint8_t address;
 	uint8_t cnt;
+  uint8_t size;
 	byte buffer[MAX_PAYLOAD_SIZE-2];
 public:
 /**
@@ -139,6 +140,8 @@ public:
 	   * @warning This \a probably will crash your program and/or give you junk data in other parts of your code!  Always use sizeof(yourObject) to prevent this.
 	   */
 	bool readPayload(void * data, const uint8_t size);
+  
+  void serialDump();
 };
 
 
@@ -194,8 +197,9 @@ public:
 	   * @param address The address of tis radio instance
 	   * @param _cepin The pin attached to Chip Enable (CE) pin on the RF module
 	   * @param _cspin The pin attached to Chip Select (CS) pin
+	   * @param _channel The radio channel (default 108)
 	   */	
-	RF24_G(uint8_t address, uint8_t _cepin, uint8_t _cspin);
+	RF24_G(uint8_t address, uint8_t _cepin, uint8_t _cspin, uint8_t _channel=108);
 
 	/**
 	   * Checks if there is a packet received packet to be read
@@ -256,7 +260,7 @@ private:
     /**
        * Internal function to configure the radio and settings
        */    
-    void setup(uint8_t address, uint8_t _cepin, uint8_t _cspin);
+    void setup(uint8_t address, uint8_t _cepin, uint8_t _cspin, uint8_t _channel=108);
     
     /**
        * Packet for reception of data
