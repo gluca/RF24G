@@ -10,7 +10,7 @@ RF24_G test;
 void setup() {
   Serial.begin(9600);
   // create the RF24G object with an address of 1, using pins 7 and 8
-  test = RF24_G(1, 7, 8);
+  test = RF24_G(1, 9, 10, 115);
   // print out the details of the radio's configuration (useful for debug)
 }
 
@@ -24,19 +24,8 @@ void loop() {
     Serial.println("packet received!");
     // read the data into the packet 
     test.read(&receiver);
-    // print the packet number of the received packet
-    // if these are not consecutive packets are being lost due to timeouts.
-    Serial.print("count: ");
-    Serial.println(receiver.getCnt());
-    // print the source address of the received packet
-    Serial.print("address: ");
-    Serial.println(receiver.getAddress());
-    // load the payload data into the payload
-    receiver.readPayload(&payload, sizeof(payload)); 
-    // print the payload 
-    Serial.print("payload: ");
-    Serial.println(payload);
-
+    receiver.serialDumpHex();
+    receiver.setAddress(4);
     // since the address in the packet object is already
     // set to the address of the receiver, it doesn't need to be changed
     // hence, we can write the packet back to the receiver
@@ -44,6 +33,8 @@ void loop() {
     if (test.write(&receiver) == false) {
       Serial.println("transmit back failed!");
       Serial.println("dropping packet...");
+    } else {
+      receiver.serialDumpHex();
     }
   }
 }
